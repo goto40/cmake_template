@@ -8,10 +8,10 @@ ARG VARIANT
 # Install necessary packages available from standard repos
 RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
     apt-get install -y --no-install-recommends \
-        software-properties-common wget apt-utils file zip \
-        openssh-client gpg-agent socat rsync \
-        make ninja-build git \
-        python3 python3-pip
+    software-properties-common wget apt-utils file zip \
+    openssh-client gpg-agent socat rsync \
+    make ninja-build git \
+    python3 python3-pip
 
 # Install conan
 RUN python3 -m pip install --upgrade pip setuptools && \
@@ -35,7 +35,7 @@ ARG GCC_VER="11"
 RUN add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
     apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
     apt-get install -y --no-install-recommends \
-        gcc-${GCC_VER} g++-${GCC_VER} gdb
+    gcc-${GCC_VER} g++-${GCC_VER} gdb
 
 # Set gcc-${GCC_VER} as default gcc
 RUN update-alternatives --install /usr/bin/gcc gcc $(which gcc-${GCC_VER}) 100
@@ -49,8 +49,8 @@ RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - 2>/dev/
     add-apt-repository -y "deb ${LLVM_URL} ${LLVM_PKG} main" && \
     apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
     apt-get install -y --no-install-recommends \
-        clang-${LLVM_VER} lldb-${LLVM_VER} lld-${LLVM_VER} clangd-${LLVM_VER} \
-        llvm-${LLVM_VER}-dev libclang-${LLVM_VER}-dev clang-tidy-${LLVM_VER}
+    clang-${LLVM_VER} lldb-${LLVM_VER} lld-${LLVM_VER} clangd-${LLVM_VER} \
+    llvm-${LLVM_VER}-dev libclang-${LLVM_VER}-dev clang-tidy-${LLVM_VER}
 
 # Set the default clang-tidy, so CMake can find it
 RUN update-alternatives --install /usr/bin/clang-tidy clang-tidy $(which clang-tidy-${LLVM_VER}) 1
@@ -63,7 +63,7 @@ RUN update-alternatives --install /usr/bin/clang++ clang++ $(which clang++-${LLV
 ARG CMAKE_URL="https://apt.kitware.com/ubuntu/"
 ARG CMAKE_PKG=${VARIANT}
 RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null \
-        | gpg --dearmor - | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null && \
+    | gpg --dearmor - | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null && \
     apt-add-repository -y "deb ${CMAKE_URL} ${CMAKE_PKG} main" && \
     apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
     apt-get install -y --no-install-recommends cmake cmake-curses-gui
@@ -71,12 +71,12 @@ RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/nul
 # Install editors
 RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
     apt-get install -y --no-install-recommends \
-        neovim emacs nano
+    neovim emacs nano
 
 # Install optional dependecies
 RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
     apt-get install -y --no-install-recommends \
-        doxygen graphviz ccache cppcheck
+    doxygen graphviz ccache cppcheck
 
 # Install include-what-you-use
 ENV IWYU /home/iwyu
@@ -84,11 +84,11 @@ ENV IWYU_BUILD ${IWYU}/build
 ENV IWYU_SRC ${IWYU}/include-what-you-use
 RUN mkdir -p ${IWYU_BUILD} && \
     git clone --branch clang_${LLVM_VER} \
-        https://github.com/include-what-you-use/include-what-you-use.git \
-        ${IWYU_SRC}
+    https://github.com/include-what-you-use/include-what-you-use.git \
+    ${IWYU_SRC}
 RUN CC=clang-${LLVM_VER} CXX=clang++-${LLVM_VER} cmake -S ${IWYU_SRC} \
-        -B ${IWYU_BUILD} \
-        -G "Unix Makefiles" -DCMAKE_PREFIX_PATH=/usr/lib/llvm-${LLVM_VER} && \
+    -B ${IWYU_BUILD} \
+    -G "Unix Makefiles" -DCMAKE_PREFIX_PATH=/usr/lib/llvm-${LLVM_VER} && \
     cmake --build ${IWYU_BUILD} -j && \
     cmake --install ${IWYU_BUILD}
 
@@ -116,5 +116,28 @@ ENV CXX=${CXX:-"g++"}
 # Include project
 #ADD . /workspaces/cpp_starter_project
 #WORKDIR /workspaces/cpp_starter_project
+
+ARG USERNAME=vscode
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+# Create the user
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    #
+    # [Optional] Add sudo support. Omit if you don't need to install software after connecting.
+    && apt-get update \
+    && apt-get install -y sudo \
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME
+
+RUN sudo usermod -s /bin/bash vscode
+
+# ********************************************************
+# * Anything else you want to do like clean up goes here *
+# ********************************************************
+
+# [Optional] Set the default user. Omit if you want to keep the default as root.
+USER $USERNAME
 
 CMD ["/bin/bash"]
